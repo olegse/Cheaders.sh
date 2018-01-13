@@ -584,7 +584,9 @@ function fnc() {
 		case "$call" in
 			local )	whatis $fn &> /dev/null || functions+=( $fn ) ;;
 			system)	whatis $fn &> /dev/null && functions+=( $fn ) ;;
-			*     )	functions+=( $fn ) ;;
+			all|'')	functions+=( $fn ) ;;
+			*     ) echo "in fnc(): invalid call specification (should be one of all/local/system)"
+							exit 1;;
 		esac
 	done
 
@@ -592,6 +594,21 @@ function fnc() {
 	then
 		echo "in fnc()"
 		arr_d functions[@]
+	fi
+}
+
+function lfnc() {
+	fnc $call
+
+	echo -e "$file\n---"
+	for fn in ${functions[@]}
+	do
+		echo " $fn"
+	done
+
+	if [ ${#files[@]} -ne 1 ]
+	then
+		echo ""
 	fi
 }
 

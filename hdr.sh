@@ -19,7 +19,7 @@ function usage() {
 	echo "  -c, --create-header-file     create header file for the function definitions"
 	echo "  -r, --recursive              process files recursively"
 	echo "  -s, --strict                 always assure that it is a header for the local function call"
-	echo "  -l, --list all|local|system  list function calls"
+	echo "  -l, --list [all|local|system]  list function calls; all by default"
 	echo "  -p, --keep                   keep man page"
 	echo "  -d, --debug                  display debug information"
 	exit 1
@@ -32,15 +32,12 @@ do
 
 		-l*|--list)
 				get_arg call $1 $2
-
-				case $call in 
-					all|local|system) 
-						FN_ARGS=--$call
-					;;
-
-					*)			 echo "wrong call specification, should be one of all, local, or system"
-									 exit 1;;
-				esac
+				action=lfnc
+				if ! [[ $call =~ all|local|system ]]
+				then
+					unset call
+					count=1
+				fi
 		;;
 
 		-c|--create-header)
