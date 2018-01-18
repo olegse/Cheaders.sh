@@ -226,7 +226,6 @@ function _inc() {
 	for statement in "${statements[@]}"
 	do
 		dup "$statement" headers[@] 
-
 		if [ ! $duplicate ] 
 		then
 
@@ -293,14 +292,6 @@ function recurse_file() {
 
 #
 # Find header with function definition.
-#
-# usage: get_lhdr FUNCTION
-#
-# variables:    fn              function name
-#               header          header name found
-#
-# success:			header is set to header file name
-
 function get_lhdr() {
 	
 	# try to find a header that declares a function; the last wins; think what gonna happen if it is multiple headers?
@@ -865,4 +856,3 @@ function arr_d() {
 		echo""
 	fi
 }
-

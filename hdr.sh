@@ -16,18 +16,19 @@ function usage() {
 	echo ""
 	echo "  -i, --write-include          write include statements and header file"
 	echo "  -H, --header HEADER          header file name"
-	echo "  -c, --create-header-file     create header file for the function definitions"
+	echo "  -c, --create-header          create header file for the function definitions"
 	echo "  -r, --recursive              process files recursively"
 	echo "  -s, --strict                 always assure that it is a header for the local function call"
 	echo "  -l, --list [all|local|system]  list function calls; all by default"
 	echo "  -p, --keep                   keep man page"
 	echo "  -d, --debug                  display debug information"
-	exit 1
+	exit 5
 }
 
 
 while [ $1 ] 
 do
+	echo "processing $1"
 	case "$1" in
 
 		-l*|--list)
@@ -41,7 +42,7 @@ do
 		;;
 
 		-c|--create-header)
-				action 'header_wr'
+				action='header_wr'
 		;;
 
 		-i|--write-include)
@@ -82,7 +83,9 @@ do
 		 *)	 files+=( $1 )		;;
 
 	esac
-	shift $count; count=1		# reset count
+	echo "shifting $count"
+	shift $cound; count=1		# reset count
+	echo "\$*: $*"
 done
 			
 test $files  || { usage; }
@@ -110,6 +113,8 @@ while [ ${files[$i]} ]
 do
 
 	file=${files[$i]}
+
+	cp $file $file.bak
 
 	# debug 
 	if [ $debug ]
