@@ -7,12 +7,17 @@
 # 	fn 	   					function name
 #		header					header file name; returned by get_lhdr							
 #
+#
+
+#C_BASE=						base directory to search for a source files
 
 declare -a headers
 declare -a declarations
 declare -a files
 declare -a functions
 declare -a dfile
+
+source vars
 
 
  ###         ###												###           ###
@@ -269,23 +274,71 @@ function _inc() {
 ###         ###                        ###           ###
 
 
+# Link source files into current directory
+function link_src() {
+
+	test ! $1 || files=( $1 )
+
+	recurse_files		# init files array
+
+	for file in ${files[@]}
+	do
+		if [ $debug ]
+		then
+			echo "creating link to $file"
+		fi
+
+		test -e `basename $file` || ln --symbolic --verbose $file .
+									# create links if not in current directory
+	done
+	exit 0
+}
+
+
+
+# List files recursively
+function list_src() {
+	recurse_files 
+	arr_d files[@]
+	exit 0
+}
+
+function recurse_files() {
+
+	while [ ${files[$i]} ]
+	do 
+		file=${files[$i]}
+
+		if [ $debug ]
+		then
+			echo "processing file: $file"
+		fi
+
+		recurse_file
+		((i++))
+	done 
+}
+
+
 # Find files recursively, depends on the function calls. Add each file
 # that is function source code to the functions[].
 #
 function recurse_file() {
-	if [ $recursive ]
-	then
-		fnc --local
-		for fn in ${functions[@]}
-		do
-			_dfile
-		done
-
+	fnc --local
+	for fn in ${functions[@]}
+	do
 		if [ $debug ]
-		then
+		then	
 			echo "in recurse_file()"
-			arr_d files[@]
+			echo -e "processing function '$fn'\n"
 		fi
+		_dfile
+	done
+
+	if [ $debug ]
+	then
+		echo "in recurse_file()"
+		arr_d files[@]
 	fi
 }
 
@@ -437,11 +490,12 @@ function _dec() {
 }
 
 #
-# Find file that declares function call. Expects function name on input.
+# Find file that declares function call. Expects function name on input. Special variable $C_BASE can be set to search for C source files.
 # 
 # usage:      _dfile FUNCTION
 #
 # variables:  fn      function name
+#							multi_file
 #             dfile[] declaration file(s) 
 #    
 # success:    files[]
@@ -455,26 +509,31 @@ function _dfile()
 	if [ $debug ]
 	then 
 		echo "in _dfile()"
-		echo -ne "function declaration:\t"
-			grep -h "^\s*\w\+\s*\**\s*$fn\s*(" *.c | sed '/return/d'		# -h, --no-filename
-			echo -ne "found in:\t"
-			grep -H "^\s*\w\+\s*\**\s*$fn\s*(" *.c | sed '/return/d' | awk -F: '{print $1}'		# -H, --with-filename
+			echo "C_BASE: $C_BASE"
+			echo -e "source files found\n`\
+			grep --recursive --binary-files=without-match "^\s*\w\+\s*\**\s*$fn\s*([^;]*\({.*\)\?$" {$C_BASE,.} | sed '/return/d'`\n"
 	fi
 			
 	# find file that declares function
-	dfile=( `grep --with-filename "^\s*\w\+\s*\**\s*$fn\s*(" *.c |\
-					 sed '/return/d' |\
-					 awk -F: '{print $1}'` )
+	dfile=( `grep --files-with-matches --binary-files=without-match --recursive "^\s*\w\+\s*\**\s*\<$fn\>\s*([^;]*\({.*\)\?$" {$C_BASE,.} |\
+					 sed '/return/d'` )
 		
-	# check if declaration was found
 	if [ ${#dfile[@]} -eq 0 ]
 	then
 		echo "file that declares $fn was not found"
 		exit 1
+
+	elif [ ${#dfile[@]} -eq 2 ]
+	then
+		test ${dfile[0]} -ef ${dfile[1]} || ((multi_file++))
+		dfile=`basename ${dfile[0]}`
+
+	elif [ ${#dfile[@]} -gt 2 ]
+	then
+		((multi_file++))
 	fi
 
-	# check for the multiple declarations
-	if [ ${#dfile[@]} -gt 1 ]
+	if [ $multi_file ]
 	then
 		echo "multiple files declares function $fn"
 		exit 1
@@ -484,7 +543,7 @@ function _dfile()
 	# are handled
 
 	# check if file that declares the function was already stored
-	dup $dfile files[@]		
+	dup ${dfile[0]} files[@]		
 	
 	if [ ! $duplicate ] 
 	#
@@ -493,7 +552,7 @@ function _dfile()
 	
 		# debug 
 		if [ $debug ]; then
-			echo "$dfile was not stored yet..storing for the further parsing"
+			echo -e "$dfile was not stored yet..storing for the further parsing\n"
 		fi
 	
 		# store file in the files array to be parsed after
@@ -570,17 +629,20 @@ function editc() {
 
 function fnc() {
 	call=$1
-	for fn in `sed 's/\/\s*\*[^*]*\*\s*\///g; /\/\s*\*/,/\*\s*\//d;' $file | grep -o '\(^\s*\|[;)]\s*\)\w\+\s*(' | grep -o '\w\+' | sort -u | sed '/if\|while\|for\|main\|switch\|sizeof/d'` 
+
+	unset functions
+
+	for fn in `sed 's/\/\s*\*[^*]*\*\s*\///g; /\/\s*\*/,/\*\s*\//d;' $file | grep -o '\(^\s*\|[;(!+=]\s*\)\w\+\s*(' | grep -o '\w\+' | sort -u | sed '/if\|while\|for\|main\|switch\|sizeof/d'` 
 	do
 		case "$call" in
-			local )	whatis $fn &> /dev/null || functions+=( $fn ) ;;
-			system)	whatis $fn &> /dev/null && functions+=( $fn ) ;;
-			all|'')	functions+=( $fn ) ;;
-			*     ) echo "in fnc(): invalid call specification (should be one of all/local/system)"
+			--local )	whatis $fn &> /dev/null || functions+=( $fn );;
+			--system)	whatis $fn &> /dev/null && functions+=( $fn ) ;;
+			--all|'')	functions+=( $fn ) ;;
+			*     ) echo "call: $call"; echo "in fnc(): invalid call specification (should be one of all/local/system)"
 							exit 1;;
 		esac
 	done
-
+	
 	if [ $debug ]
 	then
 		echo "in fnc()"
@@ -592,6 +654,7 @@ function lfnc() {
 	fnc $call
 
 	echo -e "$file\n---"
+
 	for fn in ${functions[@]}
 	do
 		echo " $fn"
@@ -602,7 +665,6 @@ function lfnc() {
 		echo ""
 	fi
 }
-
 
 
  ###         ###									 ###           ###

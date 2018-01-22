@@ -21,9 +21,9 @@ argument_required=
 count=1
 
 #
-# Set variable to an option argument. Global value of the argument required can be set.
+# Set variable to an option argument. Global value of the argument_required can be set.
 #
-# usage: get_arg variable $1 $2 [argument_required]
+# usage: get_arg variable $1 $2 
 #
 # cases:
 # 	get_arg VAR --opt value
@@ -31,6 +31,13 @@ count=1
 # 	get_arg VAR -o value
 #
 function get_arg() {
+
+	# Debug
+	#echo "\$1: $1"
+	#echo "\$2: $2"
+	#echo "\$3: $3"
+
+	count=2
 
 	if [[ $2 =~ ^-- ]]		# long option/ --opt value
 	then
@@ -42,6 +49,8 @@ function get_arg() {
 		if [ ! $arg ]			
 		then		
 			arg=$3
+		else
+			count=1
 		fi
 	fi
 
@@ -55,6 +64,6 @@ function get_arg() {
 	fi
 	eval "$1=$arg"
 
-	echo "$1 was set to ${!1}"
-	count=2
+	# Debug
+	#echo "$1 was set to ${!1}"
 }

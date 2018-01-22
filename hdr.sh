@@ -19,6 +19,8 @@ function usage() {
 	echo "  -c, --create-header          create header file for the function definitions"
 	echo "  -r, --recursive              process files recursively"
 	echo "  -s, --strict                 always assure that it is a header for the local function call"
+	echo "  -L, --link-source-files						 list or link files into current directory (run recursively)"
+	echo "      --list-source-files                                                                        "
 	echo "  -l, --list [all|local|system]  list function calls; all by default"
 	echo "  -p, --keep                   keep man page"
 	echo "  -d, --debug                  display debug information"
@@ -28,14 +30,15 @@ function usage() {
 
 while [ $1 ] 
 do
-	echo "processing $1"
 	case "$1" in
 
 		-l*|--list)
 				get_arg call $1 $2
 				action=lfnc
-				if ! [[ $call =~ all|local|system ]]
+				if [[ $call =~ all|local|system ]]
 				then
+					call=--$call
+				else
 					unset call
 					count=1
 				fi
@@ -67,6 +70,15 @@ do
 				get_arg HEADER $1 $2 1
 		;;
 
+		-L|--link-source-files)
+				# link all the source files recursively into current directory
+				action=link_src;;
+
+		--list-source-files)
+				# list source files recursively
+				action=list_src;;
+				
+
 		-d|--debug) 
 				# set debug flag
 				((debug++)) 				
@@ -83,9 +95,7 @@ do
 		 *)	 files+=( $1 )		;;
 
 	esac
-	echo "shifting $count"
-	shift $cound; count=1		# reset count
-	echo "\$*: $*"
+	shift $count; count=1		# reset count
 done
 			
 test $files  || { usage; }
@@ -95,8 +105,6 @@ if [[ $strict || $action == 'header_wr' ]]
 then
 		test $HEADER || usage 
 fi
-
-declare -a functions
 
 
 # debug
@@ -109,12 +117,11 @@ fi
 # debug
 
 
+# pre-action
 while [ ${files[$i]} ]
 do
 
 	file=${files[$i]}
-
-	cp $file $file.bak
 
 	# debug 
 	if [ $debug ]
@@ -128,3 +135,5 @@ do
 
 	((i++))
 done
+
+# post-action

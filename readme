@@ -5,4 +5,4 @@
 														   the *at functions should use the
 					   									 current working directory. */
 
- Failed to parse if(isdigit(
+ Doesn't appends after #define directive.
